@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企业考勤管理平台</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>企业考勤管理平台</h1>
+            <p class="subtitle">基于标准工时计算的智能考勤统计系统</p>
+        </header>
+
+        <div class="upload-section">
+            <div class="upload-card">
+                <h2>📋 导入考勤数据</h2>
+                <div class="upload-area" id="uploadArea">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7,10 12,15 17,10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    <p>点击选择或拖拽Excel文件到此处</p>
+                    <p class="upload-hint">支持 .xlsx、.xls 格式</p>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
+                </div>
+                <button id="uploadBtn" class="upload-btn">选择文件</button>
+            </div>
+        </div>
+
+        <div class="rules-section">
+            <div class="rules-card">
+                <h3>📋 考勤计算规则</h3>
+                <div class="rules-grid">
+                    <div class="rule-item">
+                        <h4>标准工作时段</h4>
+                        <ul>
+                            <li>上午班：08:30 - 12:00 (3.5小时)</li>
+                            <li>下午班：13:30 - 17:30 (4.0小时)</li>
+                            <li>晚班：18:00 - 22:00 (4.0小时加班)</li>
+                        </ul>
+                    </div>
+                    <div class="rule-item">
+                        <h4>餐补标准</h4>
+                        <ul>
+                            <li>午餐补贴：白班工时 ≥ 8小时，15元</li>
+                            <li>夜宵补贴：加班工时 ≥ 4小时，10元</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <div class="results-header">
+                <h2>📊 考勤统计结果</h2>
+                <div class="action-buttons">
+                    <button id="exportBtn" class="export-btn">导出Excel报表</button>
+                    <button id="clearBtn" class="clear-btn">清除数据</button>
+                </div>
+            </div>
+
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <h3>总员工数</h3>
+                    <span id="totalEmployees">0</span>
+                </div>
+                <div class="summary-card">
+                    <h3>总出勤天次</h3>
+                    <span id="totalAttendance">0</span>
+                </div>
+                <div class="summary-card">
+                    <h3>午餐补贴</h3>
+                    <span id="totalLunchAllowance">0元</span>
+                </div>
+                <div class="summary-card">
+                    <h3>夜宵补贴</h3>
+                    <span id="totalSnackAllowance">0元</span>
+                </div>
+                <div class="summary-card">
+                    <h3>总加班工时</h3>
+                    <span id="totalOvertimeHours">0小时</span>
+                </div>
+                <div class="summary-card">
+                    <h3>总工时</h3>
+                    <span id="totalHours">0小时</span>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="daily">日统计</button>
+                <button class="tab-btn" data-tab="monthly">月统计</button>
+            </div>
+
+            <div class="tab-content">
+                <div id="dailyTab" class="tab-pane active">
+                    <div class="table-container">
+                        <table id="dailyTable">
+                            <thead>
+                                <tr>
+                                    <th>姓名</th>
+                                    <th>日期</th>
+                                    <th>上午打卡</th>
+                                    <th>下午打卡</th>
+                                    <th>晚班打卡</th>
+                                    <th>白班工时</th>
+                                    <th>加班工时</th>
+                                    <th>午餐补贴</th>
+                                    <th>夜宵补贴</th>
+                                    <th>总补贴</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="monthlyTab" class="tab-pane">
+                    <div class="table-container">
+                        <table id="monthlyTable">
+                            <thead>
+                                <tr>
+                                    <th>姓名</th>
+                                    <th>月份</th>
+                                    <th>出勤天数</th>
+                                    <th>月度白班工时</th>
+                                    <th>月度加班工时</th>
+                                    <th>平均日工时</th>
+                                    <th>月度餐补</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loadingModal" class="modal">
+            <div class="modal-content">
+                <div class="spinner"></div>
+                <p>正在处理考勤数据...</p>
+            </div>
+        </div>
+
+        <div id="errorModal" class="modal">
+            <div class="modal-content">
+                <h3>⚠️ 错误</h3>
+                <p id="errorMessage"></p>
+                <button onclick="closeModal('errorModal')">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="attendance.js"></script>
+</body>
+</html>
